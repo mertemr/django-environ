@@ -27,6 +27,7 @@ from urllib.parse import (
     urlparse,
     urlunparse,
 )
+from uuid import UUID
 
 from .compat import (
     DJANGO_POSTGRES,
@@ -284,6 +285,12 @@ class Env:
     def dict(self, var, cast=dict, default=NOTSET):
         """
         :rtype: dict
+        """
+        return self.get_value(var, cast=cast, default=default)
+
+    def uuid(self, var, cast=UUID, default=NOTSET):
+        """
+        :rtype: uuid.UUID
         """
         return self.get_value(var, cast=cast, default=default)
 
