@@ -19,21 +19,22 @@ import re
 import sys
 import warnings
 from urllib.parse import (
-    parse_qs,
     ParseResult,
+    parse_qs,
     quote,
     unquote,
     unquote_plus,
     urlparse,
     urlunparse,
 )
+from uuid import UUID
 
 from .compat import (
     DJANGO_POSTGRES,
-    ImproperlyConfigured,
-    json,
     PYMEMCACHE_DRIVER,
     REDIS_DRIVER,
+    ImproperlyConfigured,
+    json,
 )
 from .fileaware_mapping import FileAwareMapping
 
@@ -197,9 +198,14 @@ class Env:
         "redis+pubsub": "channels_redis.pubsub.RedisPubSubChannelLayer"
     }
 
-    def __init__(self, **scheme):
+    def __init__(self, fail: bool = True, **scheme):
+        """
+        :param fail: Raise ImproperlyConfigured if var not found.
+        :param **scheme: Scheme to use for parsing.
+        """
         self.smart_cast = True
         self.escape_proxy = False
+        self.fail = fail
         self.prefix = ""
         self.scheme = scheme
 
@@ -279,6 +285,12 @@ class Env:
     def dict(self, var, cast=dict, default=NOTSET):
         """
         :rtype: dict
+        """
+        return self.get_value(var, cast=cast, default=default)
+
+    def uuid(self, var, cast=UUID, default=NOTSET):
+        """
+        :rtype: uuid.UUID
         """
         return self.get_value(var, cast=cast, default=default)
 
@@ -409,9 +421,11 @@ class Env:
             value = self.ENVIRON[var_name]
         except KeyError as exc:
             if default is self.NOTSET:
+                if not self.fail:
+                    logger.warning(f'{var_name} not found in environment variables.')
+                    return None
                 error_msg = f'Set the {var_name} environment variable'
                 raise ImproperlyConfigured(error_msg) from exc
-
             value = default
 
         # Resolve any proxied values
